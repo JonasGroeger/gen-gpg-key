@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2022 Jonas Gröger
+#
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
+
+# Input
+
+MY_EMAIL="max.mustermann@example.com"
+MY_NAME="Max Mustermann"
+
+# Machinery
+
+type gpg2 1>/dev/null || { echo "Must have gnupg2 installed."; exit 1; }
+GPG_HOME_DIR="$(mktemp -d)"
+KEY_SPEC="$GPG_HOME_DIR/key.spec"
+mygpg() { gpg2 --quiet --homedir "$GPG_HOME_DIR" "$@"; }
+log() { echo -e "[+] $@"; }
+
+printf '%s\n'                  \
+    "%no-protection"           \
+    "Key-Type:     eddsa"      \
+    "Key-Curve:    Ed25519"    \
+    "Subkey-Type:  ecdh"       \
+    "Subkey-Curve: Curve25519" \
+    "Name-Real:    $MY_NAME"   \
+    "Name-Email:   $MY_EMAIL"  \
+    "Expire-Date:  0" \
+    > "$KEY_SPEC"
+
+mygpg --batch --gen-key "$KEY_SPEC"
+
+log "Generated key"
+mygpg --keyid-format long --list-keys
+
+log "Secret key: store it a secure location!"
+mygpg --export-secret-key --armor "$MY_EMAIL"
+
+log "Public key: share this among your peers."
+mygpg --export --armor "$MY_EMAIL"
+
+log "To print your key, run:"
+echo "  gpg2 --homedir $GPG_HOME_DIR --list-keys"
